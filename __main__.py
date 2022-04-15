@@ -36,6 +36,50 @@ def get_article_body(text):
 	
 	return body
 	
+	
+def translate_text(url, translate_apikey, language, text):
+
+	if "en" in language or "unk" in language:
+		return text
+		
+	language_mapping = {
+		"ger": "DE",
+	}	
+
+	n=1500
+	chunks = []
+	i = 0
+	while i+n < len(text):
+		for k in range(i+n, len(text)):
+			if text[k] == ".":
+				k = k+1
+				break
+			if text[k] == ">":
+				break
+		chunks.append(text[i:k])
+		i = k+1
+	chunks.append(text[i:])
+	
+	output = ""
+	for chunk in chunks:
+		data = {
+			"auth_key": translate_apikey,
+			"text": chunk,
+			"source_lang": language_mapping[language],
+			"target_lang": "EN-US"
+		}
+		try:
+			r = requests.get(url, params=data)
+			
+			r.raise_for_status()
+			output = output + r.json()["translations"][0]["text"] + " "
+		except Exception as e:
+			print("PROD ERROR TRANSLATING TEXT")
+			print(e)
+	
+	return output
+	
+	
 def sentiment_text(sentiment_url, sentiment_apikey, sentiment_model, text):
 
 	URL = sentiment_url + "/v1/analyze?version=2020-08-01"
@@ -49,7 +93,7 @@ def sentiment_text(sentiment_url, sentiment_apikey, sentiment_model, text):
 		r.raise_for_status()
 		return r.json()["sentiment"]["document"]["score"]
 	except Exception as ex:
-		print("ERROR GETTING SENTIMENT:", str(ex))
+		print("PROD ERROR GETTING SENTIMENT:", str(ex))
 		return -2
 
 # @DEV: Uploads a document to a Watson collection
@@ -81,17 +125,18 @@ def insert_sql_db(sql_db_url,sql_db_apikey,payload):
 		print("PAYLOAD:",payload)
 		return "0"
 	
-
-
+	
 # @DEV: Uses the requests library to download the html of each url given and saves to a repository.
 # @PARAM: _article_map is a Dictionary where keys map to meta data of each article.
 # @PARAM: _file_dump is a String for file system path where you want to save the files.
-def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_model):
+def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_model, translate_url, translate_apikey):
 	for file_name in _article_map.keys():
 		url = _article_map[file_name]['metadata']["url"]
 		text = ""
 		try:
-			r = requests.get(url)
+			s = requests.Session()
+			s.headers['User-Agent'] = "wrights-media-rss"
+			r = s.get(url)
 			r.raise_for_status()
 			html = r.text
 			text = get_article_body(html)
@@ -100,11 +145,16 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 		except Exception as ex:
 			_article_map[file_name]["metadata"]["sentiment_score"] = -4
 		
-		_article_map[file_name]["text"] = "<!DOCTYPE html><html><head><title>" + _article_map[file_name]['metadata']['title'] + "</title></head><body><p>" + text + "</p></body></html>"
+		text = translate_text(translate_url, translate_apikey, _article_map[file_name]["metadata"]["language"], text)
+		html_doc = "<!DOCTYPE html><html><head><title>" + _article_map[file_name]['metadata']['title'] + "</title></head><body><p>" + text + "</p></body></html>"
+		_article_map[file_name]["text"] = html_doc
 		if _article_map[file_name]["metadata"]["lead_classifier"] > .74 and text:
 			_article_map[file_name]["metadata"]["sentiment_score"] = sentiment_text(_sentiment_url, _sentiment_apikey, _sentiment_model, text)
+		else:
+			_article_map[file_name]["metadata"]["sentiment_score"] = -5
 		
 	return _article_map
+	
 
 # @DEV: Loops through a directory of documents and calls the add_document function for each of them.
 # After it is successfully uploaded to Watson Discovery, the file is removed.
@@ -130,7 +180,8 @@ def push_all_docs(_discovery_object, _article_map, _environment_id, _collection_
 						"article_url": _article_map[file_name]['metadata']['url'],
 						"lead_classifier": _article_map[file_name]['metadata']['lead_classifier'],
 						"article_pubdate": _article_map[file_name]['metadata']['pub_date'],
-						"article_text": _article_map[file_name]['text']
+						"article_text": _article_map[file_name]['text'],
+						"sentiment_score": _article_map[file_name]['metadata']['sentiment_score']
 						}
 			sqldb_id = insert_sql_db(_sql_db_url,_sql_db_apikey,payload)
 			_article_map[file_name]['metadata']['sqldb_id'] = sqldb_id
@@ -168,7 +219,7 @@ def main(_param_dictionary):
 		)
 	print("CALLED WITH PARAMS:",_param_dictionary)
 	result = push_all_docs(discovery_object,
-							download_html(_param_dictionary['parsed_feed'],_param_dictionary["sentiment_url"],_param_dictionary["sentiment_apikey"],_param_dictionary["sentiment_model"]),
+							download_html(_param_dictionary['parsed_feed'],_param_dictionary["sentiment_url"],_param_dictionary["sentiment_apikey"],_param_dictionary["sentiment_model"],_param_dictionary["translate_url"],_param_dictionary["translate_apikey"]),
 							_param_dictionary['environment_id'],
 							_param_dictionary['collection_id'],
 							_param_dictionary['sql_db_url'],
