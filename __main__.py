@@ -1,12 +1,15 @@
 # Standard library imports
 import json
 import requests
-import time
 import calendar
+import time
 import re
 # Third party imports
 from ibm_watson import DiscoveryV1, ApiException
 from lxml import etree
+
+#env variable for logging
+env = ""
 
 def get_article_body(text):
 	dom = etree.HTML(text)
@@ -14,16 +17,33 @@ def get_article_body(text):
 		return ""
 	body_parses = []
 	body_parses.append(dom.xpath('//p[contains(@class,"article")]//text()'))
+	body_parses.append(dom.xpath('//p[contains(@class,"linkdb-marker")]//text()'))
 	body_parses.append(dom.xpath('//div[(contains(@class,"article") or contains(@class,"body")or contains(@class,"Main") or contains(@class,"mntl-sc-page") or contains(@class,"content") or contains(@class,"listicle") or contains(@class,"SectionBreak")) and not(contains(@class,"fullbleed"))]/*[self::p or self::h2]//text()'))
 	body_parses.append(dom.xpath('//div[(contains(@class,"article") or contains(@class,"body")or contains(@class,"Main") or contains(@class,"mntl-sc-page") or contains(@class,"content") or contains(@class,"listicle") or contains(@class,"SectionBreak")) and not(contains(@class,"fullbleed"))]/*/*[self::p or self::h2]//text()'))
 	body_parses.append(dom.xpath('//div[(contains(@class,"article") or contains(@class,"body")or contains(@class,"Main") or contains(@class,"mntl-sc-page") or contains(@class,"content") or contains(@class,"listicle") or contains(@class,"SectionBreak")) and not(contains(@class,"fullbleed"))]/*/*/*[self::p or self::h2]//text()'))
-	body_parses.append(dom.xpath('//div[contains(@class,"description")]//text()'))
+	#body_parses.append(dom.xpath('//div[contains(@class,"description")]//text()'))
 	body_parses.append(dom.xpath('//div[contains(@class,"section-text")]//text()'))
 	body_parses.append(dom.xpath('//div[contains(@class,"cn-body")]/div//text()'))
-	body_parses.append(dom.xpath('//div[(contains(@id,"Body") or contains(@id,"content"))]/p//text()'))
+	body_parses.append(dom.xpath('//div[(contains(@id,"Body") or contains(@id,"content") or contains(@class,"rich-text"))]/p//text()'))
 	body_parses.append(dom.xpath('//article[(contains(@class,"content") or contains(@class,"article"))]//*[self::p or self::h2]//text()'))
 	body_parses.append(dom.xpath('//article[not(contains(@class,"content") or contains(@class,"article"))]//*[self::p or self::h2]//text()'))
-	#body_parses.append(dom.xpath('//meta[@name="body"]/@content'))
+	#body_parses.append(dom.xpath('//text()'))
+	
+	js_json = dom.xpath('//script[contains(@type,"application/json")]//text()')
+	js_text = ""
+	if js_json:
+		try:
+			jsj = json.loads(js_json[0])
+			for body in jsj["props"]["pageProps"]["articleData"]["body"]:
+				if "content" in body:
+					for content in body["content"]:
+						if "text" in content:
+							js_text = js_text + content["text"] + " "
+							#print(content["text"])
+		except Exception as ex:
+			print("COULD NOT FIND JSON/JAVASCRIPT TEXT")
+	body_parses.append([js_text])
+	
 	body = ""
 	max_length = 0
 	for bp in body_parses:
@@ -74,11 +94,11 @@ def translate_text(url, translate_apikey, language, text):
 			r.raise_for_status()
 			output = output + r.json()["translations"][0]["text"] + " "
 		except Exception as e:
-			print("PROD ERROR TRANSLATING TEXT")
+			print("*** " + env + " ERROR TRANSLATING TEXT")
 			print(e)
 	
 	return output
-	
+
 	
 def sentiment_text(sentiment_url, sentiment_apikey, sentiment_model, text):
 
@@ -93,7 +113,7 @@ def sentiment_text(sentiment_url, sentiment_apikey, sentiment_model, text):
 		r.raise_for_status()
 		return r.json()["sentiment"]["document"]["score"]
 	except Exception as ex:
-		print("PROD ERROR GETTING SENTIMENT:", str(ex))
+		print("*** " + env + " ERROR GETTING SENTIMENT:", str(ex))
 		return -2
 
 # @DEV: Uploads a document to a Watson collection
@@ -121,11 +141,12 @@ def insert_sql_db(sql_db_url,sql_db_apikey,payload):
 		j = r.json()
 		return j['article_id']
 	except Exception as e:
-		print("*** PROD ERROR ADDING ARTICLE TO SQL DB:",str(e))
+		print("*** " + env + " ERROR ADDING ARTICLE TO SQL DB:",str(e))
 		print("PAYLOAD:",payload)
 		return "0"
 	
-	
+
+
 # @DEV: Uses the requests library to download the html of each url given and saves to a repository.
 # @PARAM: _article_map is a Dictionary where keys map to meta data of each article.
 # @PARAM: _file_dump is a String for file system path where you want to save the files.
@@ -148,13 +169,12 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 		text = translate_text(translate_url, translate_apikey, _article_map[file_name]["metadata"]["language"], text)
 		html_doc = "<!DOCTYPE html><html><head><title>" + _article_map[file_name]['metadata']['title'] + "</title></head><body><p>" + text + "</p></body></html>"
 		_article_map[file_name]["text"] = html_doc
-		if _article_map[file_name]["metadata"]["lead_classifier"] > .74 and text:
+		if _article_map[file_name]["metadata"]["lead_classifier"] > .5 and text:
 			_article_map[file_name]["metadata"]["sentiment_score"] = sentiment_text(_sentiment_url, _sentiment_apikey, _sentiment_model, text)
 		else:
 			_article_map[file_name]["metadata"]["sentiment_score"] = -5
 		
 	return _article_map
-	
 
 # @DEV: Loops through a directory of documents and calls the add_document function for each of them.
 # After it is successfully uploaded to Watson Discovery, the file is removed.
@@ -212,6 +232,9 @@ def push_all_docs(_discovery_object, _article_map, _environment_id, _collection_
 	return uploaded_to_watson
 
 def main(_param_dictionary):
+	global env
+	env = _param_dictionary['env']
+	
 	discovery_object = DiscoveryV1(
 		version=_param_dictionary['discovery_version'], 
 		url=_param_dictionary['discovery_url'], 
