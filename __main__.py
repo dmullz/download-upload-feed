@@ -170,7 +170,10 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 		html_doc = "<!DOCTYPE html><html><head><title>" + _article_map[file_name]['metadata']['title'] + "</title></head><body><p>" + text + "</p></body></html>"
 		_article_map[file_name]["text"] = html_doc
 		if _article_map[file_name]["metadata"]["lead_classifier"] > .5 and text:
-			_article_map[file_name]["metadata"]["sentiment_score"] = sentiment_text(_sentiment_url, _sentiment_apikey, _sentiment_model, text)
+			if "Dow Jones" in _article_map[file_name]["metadata"]["publisher"]:
+				_article_map[file_name]["metadata"]["sentiment_score"] = -6
+			else:
+				_article_map[file_name]["metadata"]["sentiment_score"] = sentiment_text(_sentiment_url, _sentiment_apikey, _sentiment_model, text)
 		else:
 			_article_map[file_name]["metadata"]["sentiment_score"] = -5
 		
