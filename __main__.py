@@ -64,7 +64,14 @@ def translate_text(url, translate_apikey, language, text):
 		
 	language_mapping = {
 		"ger": "DE",
-	}	
+		"de-DE": "DE",
+		"it-IT": "IT",
+		"fr-FR": "FR",
+		"es-ES": "ES"
+	}
+	
+	if language not in language_mapping:
+		return text
 
 	n=1500
 	chunks = []
