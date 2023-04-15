@@ -64,7 +64,14 @@ def translate_text(url, translate_apikey, language, text):
 		
 	language_mapping = {
 		"ger": "DE",
-	}	
+		"de-DE": "DE",
+		"it-IT": "IT",
+		"fr-FR": "FR",
+		"es-ES": "ES"
+	}
+	
+	if language not in language_mapping:
+		return text
 
 	n=1500
 	chunks = []
@@ -130,13 +137,14 @@ def add_document(_discovery_obj, _file_info, _environment_id, _collection_id, _m
 
 # @DEV: Uses an API to insert a row in the WM SQL DB
 # @PARAM: sql_db_url is the url of the API
+# @PARAM: version is the version of the API method that should be used
 # @PARAM: sql_db_apikey is the apikey for the API
 # @PARAM: payload is the article payload
 # @RET: returns the id of the article in the SQL DB or 0 if the operation fails
-def insert_sql_db(sql_db_url,sql_db_apikey,payload):
+def insert_sql_db(sql_db_url,version,sql_db_apikey,payload):
 	try:
 		params={'apikey': sql_db_apikey}
-		r = requests.post(sql_db_url+'v1/add-article', params=params, json=payload)
+		r = requests.post(sql_db_url+version+'/add-article', params=params, json=payload)
 		r.raise_for_status()
 		j = r.json()
 		return j['article_id']
@@ -170,7 +178,10 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 		html_doc = "<!DOCTYPE html><html><head><title>" + _article_map[file_name]['metadata']['title'] + "</title></head><body><p>" + text + "</p></body></html>"
 		_article_map[file_name]["text"] = html_doc
 		if _article_map[file_name]["metadata"]["lead_classifier"] > .5 and text:
-			_article_map[file_name]["metadata"]["sentiment_score"] = sentiment_text(_sentiment_url, _sentiment_apikey, _sentiment_model, text)
+			if "Dow Jones" in _article_map[file_name]["metadata"]["publisher"]:
+				_article_map[file_name]["metadata"]["sentiment_score"] = -6
+			else:
+				_article_map[file_name]["metadata"]["sentiment_score"] = sentiment_text(_sentiment_url, _sentiment_apikey, _sentiment_model, text)
 		else:
 			_article_map[file_name]["metadata"]["sentiment_score"] = -5
 		
@@ -203,8 +214,10 @@ def push_all_docs(_discovery_object, _article_map, _environment_id, _collection_
 						"article_text": _article_map[file_name]['text'],
 						"sentiment_score": _article_map[file_name]['metadata']['sentiment_score']
 						}
-			sqldb_id = insert_sql_db(_sql_db_url,_sql_db_apikey,payload)
+			sqldb_id = insert_sql_db(_sql_db_url,"v1",_sql_db_apikey,payload)
+			sqldb_id_v2 = insert_sql_db(_sql_db_url,"v2",_sql_db_apikey,payload)
 			_article_map[file_name]['metadata']['sqldb_id'] = sqldb_id
+			_article_map[file_name]['metadata']['sqldb_id_v2'] = sqldb_id_v2
 		while True:
 			try:
 				#upload to Watson Discovery
