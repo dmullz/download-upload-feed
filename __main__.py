@@ -168,7 +168,7 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 			r = s.get(url)
 			r.raise_for_status()
 			html = r.text
-			text = get_article_body(html)
+			text = re.sub('[^A-Za-z0-9-_\., ]+', '', get_article_body(html))
 			if not text:
 				_article_map[file_name]["metadata"]["sentiment_score"] = -3
 		except Exception as ex:
@@ -205,19 +205,33 @@ def push_all_docs(_discovery_object, _article_map, _environment_id, _collection_
 		attempts = 1
 		_article_map[file_name]['metadata']['ingestion_timestamp'] = calendar.timegm(time.gmtime())*1000
 		if _sql_db_enabled:
-			payload = { "article_title": _article_map[file_name]['metadata']['title'],
-						"article_publisher": _article_map[file_name]['metadata']['publisher'],
-						"article_magazine": _article_map[file_name]['metadata']['feed_name'],
-						"article_url": _article_map[file_name]['metadata']['url'],
-						"lead_classifier": _article_map[file_name]['metadata']['lead_classifier'],
-						"article_pubdate": _article_map[file_name]['metadata']['pub_date'],
-						"article_text": _article_map[file_name]['text'],
-						"sentiment_score": _article_map[file_name]['metadata']['sentiment_score']
-						}
-			sqldb_id = insert_sql_db(_sql_db_url,"v1",_sql_db_apikey,payload)
-			sqldb_id_v2 = insert_sql_db(_sql_db_url,"v2",_sql_db_apikey,payload)
-			_article_map[file_name]['metadata']['sqldb_id'] = sqldb_id
-			_article_map[file_name]['metadata']['sqldb_id_v2'] = sqldb_id_v2
+			while True:
+				try:
+					payload = { "article_title": _article_map[file_name]['metadata']['title'],
+								"article_publisher": _article_map[file_name]['metadata']['publisher'],
+								"article_magazine": _article_map[file_name]['metadata']['feed_name'],
+								"article_url": _article_map[file_name]['metadata']['url'],
+								"lead_classifier": _article_map[file_name]['metadata']['lead_classifier'],
+								"article_pubdate": _article_map[file_name]['metadata']['pub_date'],
+								"article_text": _article_map[file_name]['text'],
+								"sentiment_score": _article_map[file_name]['metadata']['sentiment_score']
+								}
+					sqldb_id_v2 = insert_sql_db(_sql_db_url,"v2",_sql_db_apikey,payload)
+					_article_map[file_name]['metadata']['sqldb_id_v2'] = sqldb_id_v2
+				except Exception as e:
+					if attempts > 1:
+						break
+					else:
+						print("Method failed with status code " + str(e.code) + ": " + e.message)
+						print("Document: " + file_name)
+						print("Retrying in " + str(time_out) + "seconds to upload...")
+						time.sleep(time_out)
+						time_out = time_out ** 2
+						attempts += 1
+						continue
+				break
+			
+		attempts = 1
 		while True:
 			try:
 				#upload to Watson Discovery
