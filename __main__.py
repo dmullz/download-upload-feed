@@ -109,16 +109,19 @@ def translate_text(url, translate_apikey, language, text):
 	
 def sentiment_text(sentiment_url, sentiment_apikey, sentiment_model, text):
 
-	URL = sentiment_url + "/v1/analyze?version=2020-08-01"
+	URL = sentiment_url + "/v1/analyze?version=2022-04-07"
 	headers = {"Content-Type":"application/json"}
-	data = {"text":text,
+	data = {"text":text[:1950],
 			"features":{
-				"sentiment":{
+				"classifications":{
 					"model":sentiment_model}}}
 	try:
 		r = requests.post(URL, auth=("apikey",sentiment_apikey), headers=headers, json=data)
 		r.raise_for_status()
-		return r.json()["sentiment"]["document"]["score"]
+		for class_found in r.json()["classifications"]:
+			if class_found['class_name'] == "positive":
+				return class_found['confidence']
+		raise
 	except Exception as ex:
 		print("*** " + env + " ERROR GETTING SENTIMENT:", str(ex))
 		return -2
