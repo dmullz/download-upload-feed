@@ -46,9 +46,15 @@ def get_article_body(text):
 	body = ""
 	max_length = 0
 	for bp in body_parses:
-		if len(bp) > max_length:
-			max_length = len(bp)
+		cur_length = 0
+		for seg in bp:
+			cur_length += len(seg)
+		if cur_length > max_length:
+			max_length = cur_length
 			body = bp
+	if max_length < 1:
+		body = dom.xpath('//p/text()')
+		
 	body = re.sub(r'\xa0', '', " ".join(body))
 	body = re.sub(r'[\n\r]+','',body)
 	body = re.sub(r'[ ]{2,}',' ', body)
@@ -153,28 +159,34 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 	for file_name in _article_map.keys():
 		url = _article_map[file_name]['metadata']["url"]
 		text = ""
-		try:
-			s = requests.Session()
-			s.headers['User-Agent'] = "wrights-media-rss"
-			r = s.get(url)
-			r.raise_for_status()
-			html = r.text
-			text = re.sub('[^A-Za-z0-9-_\., ]+', '', get_article_body(html))
-			if not text:
-				_article_map[file_name]["metadata"]["sentiment_score"] = -3
-		except Exception as ex:
-			_article_map[file_name]["metadata"]["sentiment_score"] = -4
+		if 'article_text' in _article_map[file_name]['metadata'] and _article_map[file_name]['metadata']['article_text'] != "":
+			text = re.sub('[^A-Za-z0-9-_\., ]+', '', get_article_body(_article_map[file_name]['metadata']['article_text']))
+		else:
+			html = ""
+			try:
+				s = requests.Session()
+				s.headers['User-Agent'] = "wrights-media-rss"
+				r = s.get(url)
+				html = r.text
+				r.raise_for_status()
+				text = re.sub('[^A-Za-z0-9-_\., ]+', '', get_article_body(html))
+				if not text:
+					_article_map[file_name]["metadata"]["sentiment_score"] = -3
+					print("*** " + env + " EMPTY ARTICLE TEXT. TITLE: " + _article_map[file_name]['metadata']['title'] + " ERROR TEXT: ",html)
+			except Exception as ex:
+				_article_map[file_name]["metadata"]["sentiment_score"] = -4
+				print("*** " + env + " ERROR READING ARTICLE TEXT. TITLE: " + _article_map[file_name]['metadata']['title'] + " ERROR TEXT: ",str(ex),html)
 		
 		text = translate_text(translate_url, translate_apikey, _article_map[file_name]["metadata"]["language"], text)
-		html_doc = "<!DOCTYPE html><html><head><title>" + _article_map[file_name]['metadata']['title'] + "</title></head><body><p>" + text + "</p></body></html>"
-		_article_map[file_name]["text"] = html_doc
-		if _article_map[file_name]["metadata"]["lead_classifier"] > .5 and text:
-			if "Dow Jones" in _article_map[file_name]["metadata"]["publisher"]:
-				_article_map[file_name]["metadata"]["sentiment_score"] = -6
+		_article_map[file_name]["text"] = text
+		if text:
+			if _article_map[file_name]["metadata"]["lead_classifier"] > .5:
+				if "Dow Jones" in _article_map[file_name]["metadata"]["publisher"]:
+					_article_map[file_name]["metadata"]["sentiment_score"] = -6
+				else:
+					_article_map[file_name]["metadata"]["sentiment_score"] = sentiment_text(_sentiment_url, _sentiment_apikey, _sentiment_model, text)
 			else:
-				_article_map[file_name]["metadata"]["sentiment_score"] = sentiment_text(_sentiment_url, _sentiment_apikey, _sentiment_model, text)
-		else:
-			_article_map[file_name]["metadata"]["sentiment_score"] = -5
+				_article_map[file_name]["metadata"]["sentiment_score"] = -5
 		
 	return _article_map
 
@@ -188,7 +200,7 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 # @PARAM: _collection_id is a string of the IBM Cloud collection id
 # @PARAM: _sql_db_url is the SQL DB API url
 # @PARAM: _sql_db_apikey is the SQL DB API apikey
-def push_all_docs(_discovery_object, _article_map, _environment_id, _collection_id, _sql_db_url, _sql_db_apikey, _sql_db_enabled):
+def push_all_docs(_article_map, _environment_id, _collection_id, _sql_db_url, _sql_db_apikey, _sql_db_enabled):
 	uploaded_counter = 0
 	for file_name in _article_map.keys():
 		time_out = 5
@@ -214,9 +226,6 @@ def push_all_docs(_discovery_object, _article_map, _environment_id, _collection_
 						print("*** " + env + " ARTICLE NOT ADDED TO SQL DB:",file_name)
 						break
 					else:
-						print("Method failed with status code " + str(e.code) + ": " + e.message)
-						print("Document: " + file_name)
-						print("Retrying in " + str(time_out) + "seconds to upload...")
 						time.sleep(time_out)
 						time_out = time_out ** 2
 						attempts += 1
@@ -229,11 +238,11 @@ def main(_param_dictionary):
 	global env
 	env = _param_dictionary['env']
 	
-	print("CALLED WITH PARAMS:",_param_dictionary)
+	#print("CALLED WITH PARAMS:",_param_dictionary)
 	result = push_all_docs(download_html(_param_dictionary['parsed_feed'],_param_dictionary["sentiment_url"],_param_dictionary["sentiment_apikey"],_param_dictionary["sentiment_model"],_param_dictionary["translate_url"],							_param_dictionary["translate_apikey"]),
 							_param_dictionary['environment_id'],
 							_param_dictionary['collection_id'],
 							_param_dictionary['sql_db_url'],
 							_param_dictionary['sql_db_apikey'],
 							_param_dictionary['sql_db_enabled'])
-	return result
+	return {"uploaded_docs_count": result}
