@@ -200,7 +200,7 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 # @PARAM: _collection_id is a string of the IBM Cloud collection id
 # @PARAM: _sql_db_url is the SQL DB API url
 # @PARAM: _sql_db_apikey is the SQL DB API apikey
-def push_all_docs(_article_map, _environment_id, _collection_id, _sql_db_url, _sql_db_apikey, _sql_db_enabled):
+def push_all_docs(_article_map, _environment_id, _collection_id, _sql_db_url, _sql_db_apikey, _sql_db_enabled, lead_by_article_url):
 	uploaded_counter = 0
 	for file_name in _article_map.keys():
 		time_out = 5
@@ -231,6 +231,28 @@ def push_all_docs(_article_map, _environment_id, _collection_id, _sql_db_url, _s
 						attempts += 1
 						continue
 				break
+		
+		if (_article_map[file_name]['metadata']['sentiment_score'] > .33 and _article_map[file_name]['metadata']['lead_classifier'] > .5) or (_article_map[file_name]['metadata']['lead_classifier'] > .45 and "Dow Jones" in _article_map[file_name]['metadata']['article_publisher']):
+			time_out = 5
+			attempts = 1
+			headers = {"Content-Type":"application/json"}
+			data = {
+				'article_id': _article_map[file_name]['metadata']['sqldb_id_v2']
+			}
+			while True:
+				try:
+					r = requests.post(lead_by_article_url, headers=headers, json=data)
+					r.raise_for_status()
+				except Exception as ex:
+					if attempts > 2:
+						print("*** " + env + " ERROR CALLING LEAD-BY-ARTICLE", str(ex))
+						break
+					else:
+						time.sleep(time_out)
+						time_out = time_out ** 2
+						attempts += 1
+						continue
+				break
 				
 	return uploaded_counter
 
@@ -245,4 +267,13 @@ def main(_param_dictionary):
 							_param_dictionary['sql_db_url'],
 							_param_dictionary['sql_db_apikey'],
 							_param_dictionary['sql_db_enabled'])
-	return {"uploaded_docs_count": result}
+
+
+	
+	return {
+		"headers": {
+			"Content-Type": "application/json",
+		},
+		"statusCode": 200,
+		"body": {"uploaded_docs_count": result}
+	}
