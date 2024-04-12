@@ -72,7 +72,13 @@ def translate_text(url, translate_apikey, language, text):
 		"de-DE": "DE",
 		"it-IT": "IT",
 		"fr-FR": "FR",
-		"es-ES": "ES"
+		"es-ES": "ES",
+		"NL": "NL",
+		"nl": "NL",
+		"fr": "FR",
+		"de": "DE",
+		"it": "IT",
+		"es": "ES"
 	}
 	
 	if language not in language_mapping:
@@ -177,10 +183,11 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 				_article_map[file_name]["metadata"]["sentiment_score"] = -4
 				print("*** " + env + " ERROR READING ARTICLE TEXT. TITLE: " + _article_map[file_name]['metadata']['title'] + " ERROR TEXT: ",str(ex),html)
 		
-		text = translate_text(translate_url, translate_apikey, _article_map[file_name]["metadata"]["language"], text)
 		_article_map[file_name]["text"] = text
 		if text:
 			if _article_map[file_name]["metadata"]["lead_classifier"] > .5:
+				text = translate_text(translate_url, translate_apikey, _article_map[file_name]["metadata"]["language"], text)
+				_article_map[file_name]["text"] = text
 				if "Dow Jones" in _article_map[file_name]["metadata"]["publisher"]:
 					_article_map[file_name]["metadata"]["sentiment_score"] = -6
 				else:
