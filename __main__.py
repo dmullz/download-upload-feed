@@ -72,7 +72,13 @@ def translate_text(url, translate_apikey, language, text):
 		"de-DE": "DE",
 		"it-IT": "IT",
 		"fr-FR": "FR",
-		"es-ES": "ES"
+		"es-ES": "ES",
+		"NL": "NL",
+		"nl": "NL",
+		"fr": "FR",
+		"de": "DE",
+		"it": "IT",
+		"es": "ES"
 	}
 	
 	if language not in language_mapping:
@@ -177,10 +183,11 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 				_article_map[file_name]["metadata"]["sentiment_score"] = -4
 				print("*** " + env + " ERROR READING ARTICLE TEXT. TITLE: " + _article_map[file_name]['metadata']['title'] + " ERROR TEXT: ",str(ex),html)
 		
-		text = translate_text(translate_url, translate_apikey, _article_map[file_name]["metadata"]["language"], text)
 		_article_map[file_name]["text"] = text
 		if text:
 			if _article_map[file_name]["metadata"]["lead_classifier"] > .5:
+				text = translate_text(translate_url, translate_apikey, _article_map[file_name]["metadata"]["language"], text)
+				_article_map[file_name]["text"] = text
 				if "Dow Jones" in _article_map[file_name]["metadata"]["publisher"]:
 					_article_map[file_name]["metadata"]["sentiment_score"] = -6
 				else:
@@ -258,15 +265,17 @@ def push_all_docs(_article_map, _environment_id, _collection_id, _sql_db_url, _s
 
 def main(_param_dictionary):
 	global env
-	env = _param_dictionary['env']
+	inputs = os.environ
+	env = inputs['env']
 	
 	#print("CALLED WITH PARAMS:",_param_dictionary)
-	result = push_all_docs(download_html(_param_dictionary['parsed_feed'],_param_dictionary["sentiment_url"],_param_dictionary["sentiment_apikey"],_param_dictionary["sentiment_model"],_param_dictionary["translate_url"],							_param_dictionary["translate_apikey"]),
-							_param_dictionary['environment_id'],
-							_param_dictionary['collection_id'],
-							_param_dictionary['sql_db_url'],
-							_param_dictionary['sql_db_apikey'],
-							_param_dictionary['sql_db_enabled'])
+	result = push_all_docs(download_html(_param_dictionary['parsed_feed'],inputs["sentiment_url"],inputs["sentiment_apikey"],inputs["sentiment_model"],inputs["translate_url"],inputs["translate_apikey"]),
+							inputs['environment_id'],
+							inputs['collection_id'],
+							inputs['sql_db_url'],
+							inputs['sql_db_apikey'],
+							inputs['sql_db_enabled'],
+							inputs['lead_by_article_url'])
 
 
 	
