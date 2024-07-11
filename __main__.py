@@ -242,13 +242,9 @@ def push_all_docs(_article_map, _environment_id, _collection_id, _sql_db_url, _s
 		if (_article_map[file_name]['metadata']['sentiment_score'] > .33 and _article_map[file_name]['metadata']['lead_classifier'] > .5) or (_article_map[file_name]['metadata']['lead_classifier'] > .45 and "Dow Jones" in _article_map[file_name]['metadata']['article_publisher']):
 			time_out = 5
 			attempts = 1
-			headers = {"Content-Type":"application/json"}
-			data = {
-				'article_id': _article_map[file_name]['metadata']['sqldb_id_v2']
-			}
 			while True:
 				try:
-					r = requests.post(lead_by_article_url, headers=headers, json=data)
+					r = requests.get(url=lead_by_article_url+'?article_id=' + str(_article_map[file_name]['metadata']['sqldb_id_v2']))
 					r.raise_for_status()
 				except Exception as ex:
 					if attempts > 2:
