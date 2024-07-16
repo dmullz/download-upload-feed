@@ -208,7 +208,7 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 # @PARAM: _collection_id is a string of the IBM Cloud collection id
 # @PARAM: _sql_db_url is the SQL DB API url
 # @PARAM: _sql_db_apikey is the SQL DB API apikey
-def push_all_docs(_article_map, _environment_id, _collection_id, _sql_db_url, _sql_db_apikey, lead_by_article_url):
+def push_all_docs(_article_map, _sql_db_url, _sql_db_apikey, lead_by_article_url):
 	uploaded_counter = 0
 	for file_name in _article_map.keys():
 		time_out = 5
@@ -266,8 +266,6 @@ def main(_param_dictionary):
 	
 	#print("CALLED WITH PARAMS:",_param_dictionary)
 	result = push_all_docs(download_html(_param_dictionary['parsed_feed'],inputs["sentiment_url"],inputs["sentiment_apikey"],inputs["sentiment_model"],inputs["translate_url"],inputs["translate_apikey"]),
-							inputs['environment_id'],
-							inputs['collection_id'],
 							inputs['sql_db_url'],
 							inputs['sql_db_apikey'],
 							inputs['lead_by_article_url'])
