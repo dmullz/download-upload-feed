@@ -208,37 +208,36 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 # @PARAM: _collection_id is a string of the IBM Cloud collection id
 # @PARAM: _sql_db_url is the SQL DB API url
 # @PARAM: _sql_db_apikey is the SQL DB API apikey
-def push_all_docs(_article_map, _environment_id, _collection_id, _sql_db_url, _sql_db_apikey, _sql_db_enabled, lead_by_article_url):
+def push_all_docs(_article_map, _environment_id, _collection_id, _sql_db_url, _sql_db_apikey, lead_by_article_url):
 	uploaded_counter = 0
 	for file_name in _article_map.keys():
 		time_out = 5
 		attempts = 1
 		_article_map[file_name]['metadata']['ingestion_timestamp'] = calendar.timegm(time.gmtime())*1000
-		if _sql_db_enabled:
-			while True:
-				try:
-					payload = { "article_title": _article_map[file_name]['metadata']['title'],
-								"article_publisher": _article_map[file_name]['metadata']['publisher'],
-								"article_magazine": _article_map[file_name]['metadata']['feed_name'],
-								"article_url": _article_map[file_name]['metadata']['url'],
-								"lead_classifier": _article_map[file_name]['metadata']['lead_classifier'],
-								"article_pubdate": _article_map[file_name]['metadata']['pub_date'],
-								"article_text": _article_map[file_name]['text'],
-								"sentiment_score": _article_map[file_name]['metadata']['sentiment_score']
-								}
-					sqldb_id_v2 = insert_sql_db(_sql_db_url,"v2",_sql_db_apikey,payload)
-					_article_map[file_name]['metadata']['sqldb_id_v2'] = sqldb_id_v2
-					uploaded_counter += 1
-				except Exception as e:
-					if attempts > 2:
-						print("*** " + env + " ARTICLE NOT ADDED TO SQL DB:",file_name)
-						break
-					else:
-						time.sleep(time_out)
-						time_out = time_out ** 2
-						attempts += 1
-						continue
-				break
+		while True:
+			try:
+				payload = { "article_title": _article_map[file_name]['metadata']['title'],
+							"article_publisher": _article_map[file_name]['metadata']['publisher'],
+							"article_magazine": _article_map[file_name]['metadata']['feed_name'],
+							"article_url": _article_map[file_name]['metadata']['url'],
+							"lead_classifier": _article_map[file_name]['metadata']['lead_classifier'],
+							"article_pubdate": _article_map[file_name]['metadata']['pub_date'],
+							"article_text": _article_map[file_name]['text'],
+							"sentiment_score": _article_map[file_name]['metadata']['sentiment_score']
+							}
+				sqldb_id_v2 = insert_sql_db(_sql_db_url,"v2",_sql_db_apikey,payload)
+				_article_map[file_name]['metadata']['sqldb_id_v2'] = sqldb_id_v2
+				uploaded_counter += 1
+			except Exception as e:
+				if attempts > 2:
+					print("*** " + env + " ARTICLE NOT ADDED TO SQL DB:",file_name)
+					break
+				else:
+					time.sleep(time_out)
+					time_out = time_out ** 2
+					attempts += 1
+					continue
+			break
 		
 		if (_article_map[file_name]['metadata']['sentiment_score'] > .33 and _article_map[file_name]['metadata']['lead_classifier'] > .5) or (_article_map[file_name]['metadata']['lead_classifier'] > .45 and "Dow Jones" in _article_map[file_name]['metadata']['article_publisher']):
 			time_out = 5
@@ -271,7 +270,6 @@ def main(_param_dictionary):
 							inputs['collection_id'],
 							inputs['sql_db_url'],
 							inputs['sql_db_apikey'],
-							inputs['sql_db_enabled'],
 							inputs['lead_by_article_url'])
 
 
