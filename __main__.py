@@ -231,7 +231,7 @@ def push_all_docs(_article_map, _sql_db_url, _sql_db_apikey, lead_by_article_url
 				uploaded_counter += 1
 			except Exception as e:
 				if attempts > 2:
-					print("*** " + env + " ARTICLE NOT ADDED TO SQL DB:",file_name)
+					print("*** " + env + " ARTICLE NOT ADDED TO SQL DB:",_article_map[file_name]['metadata']['title'])
 					break
 				else:
 					time.sleep(time_out)
