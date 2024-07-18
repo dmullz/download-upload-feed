@@ -41,7 +41,7 @@ def get_article_body(text):
 							js_text = js_text + content["text"] + " "
 							#print(content["text"])
 		except Exception as ex:
-			print("COULD NOT FIND JSON/JAVASCRIPT TEXT")
+			print("*** " + env + " COULD NOT FIND JSON/JAVASCRIPT TEXT")
 	body_parses.append([js_text])
 	
 	body = ""
@@ -113,8 +113,7 @@ def translate_text(url, translate_apikey, language, text):
 			r.raise_for_status()
 			output = output + r.json()["translations"][0]["text"] + " "
 		except Exception as e:
-			print("*** " + env + " ERROR TRANSLATING TEXT")
-			print(e)
+			print("*** " + env + " ERROR TRANSLATING TEXT:",str(e))
 	
 	return output
 
@@ -154,7 +153,7 @@ def insert_sql_db(sql_db_url,version,sql_db_apikey,payload):
 		return j['article_id']
 	except Exception as e:
 		print("*** " + env + " ERROR ADDING ARTICLE TO SQL DB:",str(e))
-		print("PAYLOAD:",payload)
+		#print("PAYLOAD:",payload)
 		raise
 	
 
@@ -179,10 +178,12 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 				text = re.sub('[^A-Za-z0-9-_\., ]+', '', get_article_body(html))
 				if not text:
 					_article_map[file_name]["metadata"]["sentiment_score"] = -3
-					print("*** " + env + " EMPTY ARTICLE TEXT. TITLE: " + _article_map[file_name]['metadata']['title'] + " ERROR TEXT: ",html)
+					print("*** " + env + " EMPTY ARTICLE TEXT. TITLE: " + _article_map[file_name]['metadata']['title'])
+					#print("*** " + env + " EMPTY TEXT: ",html)
 			except Exception as ex:
 				_article_map[file_name]["metadata"]["sentiment_score"] = -4
-				print("*** " + env + " ERROR READING ARTICLE TEXT. TITLE: " + _article_map[file_name]['metadata']['title'] + " ERROR TEXT: ",str(ex),html)
+				print("*** " + env + " ERROR READING ARTICLE TEXT. TITLE: " + _article_map[file_name]['metadata']['title'], str(ex))
+				#print("*** " + env + " ERROR TEXT: ",html)
 		
 		_article_map[file_name]["text"] = text
 		if text:
