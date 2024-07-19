@@ -278,5 +278,6 @@ def main(_param_dictionary):
 			"Content-Type": "application/json",
 		},
 		"statusCode": 200,
-		"body": {"uploaded_docs_count": result}
+		"body": json.dumps({"uploaded_docs_count": result})
 	}
+	
