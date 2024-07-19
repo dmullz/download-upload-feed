@@ -211,6 +211,7 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 # @PARAM: _sql_db_apikey is the SQL DB API apikey
 def push_all_docs(_article_map, _sql_db_url, _sql_db_apikey, lead_by_article_url):
 	uploaded_counter = 0
+	leads = []
 	for file_name in _article_map.keys():
 		time_out = 5
 		attempts = 1
@@ -241,24 +242,25 @@ def push_all_docs(_article_map, _sql_db_url, _sql_db_apikey, lead_by_article_url
 			break
 		
 		if (_article_map[file_name]['metadata']['sentiment_score'] > .33 and _article_map[file_name]['metadata']['lead_classifier'] > .5) or (_article_map[file_name]['metadata']['lead_classifier'] > .45 and "Dow Jones" in _article_map[file_name]['metadata']['publisher']):
-			time_out = 5
-			attempts = 1
-			while True:
-				try:
-					r = requests.get(url=lead_by_article_url+'?article_id=' + str(_article_map[file_name]['metadata']['sqldb_id_v2']))
-					r.raise_for_status()
-				except Exception as ex:
-					if attempts > 2:
-						print("*** " + env + " ERROR CALLING LEAD-BY-ARTICLE", str(ex))
-						break
-					else:
-						time.sleep(time_out)
-						time_out = time_out ** 2
-						attempts += 1
-						continue
-				break
+			leads.append(str(_article_map[file_name]['metadata']['sqldb_id_v2']))
+			#time_out = 5
+			#attempts = 1
+			#while True:
+			#	try:
+			#		r = requests.get(url=lead_by_article_url+'?article_id=' + str(_article_map[file_name]['metadata']['sqldb_id_v2']))
+			#		r.raise_for_status()
+			#	except Exception as ex:
+			#		if attempts > 2:
+			#			print("*** " + env + " ERROR CALLING LEAD-BY-ARTICLE", str(ex))
+			#			break
+			#		else:
+			#			time.sleep(time_out)
+			#			time_out = time_out ** 2
+			#			attempts += 1
+			#			continue
+			#	break
 				
-	return uploaded_counter
+	return uploaded_counter, leads
 
 def main(_param_dictionary):
 	global env
@@ -266,18 +268,19 @@ def main(_param_dictionary):
 	env = inputs['env']
 	
 	#print("CALLED WITH PARAMS:",_param_dictionary)
-	result = push_all_docs(download_html(_param_dictionary['parsed_feed'],inputs["sentiment_url"],inputs["sentiment_apikey"],inputs["sentiment_model"],inputs["translate_url"],inputs["translate_apikey"]),
+	result, leads = push_all_docs(download_html(_param_dictionary['parsed_feed'],inputs["sentiment_url"],inputs["sentiment_apikey"],inputs["sentiment_model"],inputs["translate_url"],inputs["translate_apikey"]),
 							inputs['sql_db_url'],
 							inputs['sql_db_apikey'],
 							inputs['lead_by_article_url'])
 
 
+	print("*** " + env + " " + str(result) + " ARTICLES ADDED TO SQL DB; " + str(len(leads)) + " LEADS TO BE CREATED")
 	
 	return {
 		"headers": {
 			"Content-Type": "application/json",
 		},
 		"statusCode": 200,
-		"body": json.dumps({"uploaded_docs_count": result})
+		"body": json.dumps({"leads": leads})
 	}
 	
