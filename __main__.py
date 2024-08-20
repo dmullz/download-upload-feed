@@ -278,8 +278,9 @@ def main(_param_dictionary):
 	publisher = ""
 	magazine = ""
 	if len(_param_dictionary['parsed_feed']) > 0:
-		publisher = _param_dictionary['parsed_feed'][0]['publisher']
-		magazine = _param_dictionary['parsed_feed'][0]['feed_name']
+		first_key = list(_param_dictionary['parsed_feed'])[0]
+		publisher = _param_dictionary['parsed_feed'][first_key]['publisher']
+		magazine = _param_dictionary['parsed_feed'][first_key]['feed_name']
 	
 	all_docs, error_count = download_html(_param_dictionary['parsed_feed'],inputs["sentiment_url"],inputs["sentiment_apikey"],inputs["sentiment_model"],inputs["translate_url"],inputs["translate_apikey"])
 	result, leads = push_all_docs(all_docs,inputs['sql_db_url'],inputs['sql_db_apikey'],inputs['lead_by_article_url'])
