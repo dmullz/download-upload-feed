@@ -162,6 +162,7 @@ def insert_sql_db(sql_db_url,version,sql_db_apikey,payload):
 # @PARAM: _article_map is a Dictionary where keys map to meta data of each article.
 # @PARAM: _file_dump is a String for file system path where you want to save the files.
 def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_model, translate_url, translate_apikey):
+	error_count = 0
 	for file_name in _article_map.keys():
 		url = _article_map[file_name]['metadata']["url"]
 		text = ""
@@ -169,6 +170,7 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 			text = re.sub('[^A-Za-z0-9-_\., ]+', '', get_article_body(_article_map[file_name]['metadata']['article_text']))
 			if not text:
 				print("*** " + env + " EMPTY ARTICLE TEXT TAKEN DIRECTLY FROM RSS FEED. TITLE: " + _article_map[file_name]['metadata']['title'])
+				error_count = error_count + 1
 				_article_map[file_name]["metadata"]["sentiment_score"] = -3
 		else:
 			html = ""
@@ -182,10 +184,12 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 				if not text:
 					_article_map[file_name]["metadata"]["sentiment_score"] = -3
 					print("*** " + env + " EMPTY ARTICLE TEXT. TITLE: " + _article_map[file_name]['metadata']['title'])
+					error_count = error_count + 1
 					#print("*** " + env + " EMPTY TEXT: ",html)
 			except Exception as ex:
 				_article_map[file_name]["metadata"]["sentiment_score"] = -4
 				print("*** " + env + " ERROR READING ARTICLE TEXT. TITLE: " + _article_map[file_name]['metadata']['title'], str(ex))
+				error_count = error_count + 1
 				#print("*** " + env + " ERROR TEXT: ",html)
 		
 		_article_map[file_name]["text"] = text
@@ -200,7 +204,7 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 			else:
 				_article_map[file_name]["metadata"]["sentiment_score"] = -5
 		
-	return _article_map
+	return _article_map, error_count
 
 # @DEV: Loops through a directory of documents and calls the add_document function for each of them.
 # After it is successfully uploaded to Watson Discovery, the file is removed.
@@ -271,10 +275,14 @@ def main(_param_dictionary):
 	env = inputs['env']
 	
 	#print("CALLED WITH PARAMS:",_param_dictionary)
-	result, leads = push_all_docs(download_html(_param_dictionary['parsed_feed'],inputs["sentiment_url"],inputs["sentiment_apikey"],inputs["sentiment_model"],inputs["translate_url"],inputs["translate_apikey"]),
-							inputs['sql_db_url'],
-							inputs['sql_db_apikey'],
-							inputs['lead_by_article_url'])
+	publisher = ""
+	magazine = ""
+	if len(_param_dictionary['parsed_feed']) > 0:
+		publisher = _param_dictionary['parsed_feed'][0]['publisher']
+		magazine = _param_dictionary['parsed_feed'][0]['feed_name']
+	
+	all_docs, error_count = download_html(_param_dictionary['parsed_feed'],inputs["sentiment_url"],inputs["sentiment_apikey"],inputs["sentiment_model"],inputs["translate_url"],inputs["translate_apikey"])
+	result, leads = push_all_docs(all_docs,inputs['sql_db_url'],inputs['sql_db_apikey'],inputs['lead_by_article_url'])
 
 
 	print("*** " + env + " " + str(result) + " ARTICLES ADDED TO SQL DB; " + str(len(leads)) + " LEADS TO BE CREATED")
@@ -284,6 +292,6 @@ def main(_param_dictionary):
 			"Content-Type": "application/json",
 		},
 		"statusCode": 200,
-		"body": json.dumps({"leads": leads})
+		"body": json.dumps({"leads": leads, "error_count": error_count, "publisher": publisher, "magazine": magazine})
 	}
 	
