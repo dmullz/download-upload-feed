@@ -102,13 +102,16 @@ def translate_text(url, translate_apikey, language, text):
 	output = ""
 	for chunk in chunks:
 		data = {
-			"auth_key": translate_apikey,
-			"text": chunk,
-			"source_lang": language_mapping[language],
+			"text": [chunk],
+			"source_lang": "DE",
 			"target_lang": "EN-US"
 		}
+		headers = {
+			"Authorization": "DeepL-Auth-Key " + translate_apikey,
+			"Content-Type": "application/json"
+		}
 		try:
-			r = requests.get(url, params=data)
+			r = requests.post(url, headers=headers, json=data)
 			
 			r.raise_for_status()
 			output = output + r.json()["translations"][0]["text"] + " "
