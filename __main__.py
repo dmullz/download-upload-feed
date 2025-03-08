@@ -164,10 +164,13 @@ def insert_sql_db(sql_db_url,version,sql_db_apikey,payload):
 # @DEV: Uses the requests library to download the html of each url given and saves to a repository.
 # @PARAM: _article_map is a Dictionary where keys map to meta data of each article.
 # @PARAM: _file_dump is a String for file system path where you want to save the files.
-def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_model, translate_url, translate_apikey):
+def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_model, translate_url, translate_apikey, inputs):
 	error_count = 0
 	for file_name in _article_map.keys():
 		url = _article_map[file_name]['metadata']["url"]
+		if _article_map[file_name]['metadata']['publisher'] == "The New York Times":
+			url_split = url.split('://')
+			url = url_split[0] + "://" + inputs['The-New-York-Times-user'] + ":" + inputs['The-New-York-Times-pass'] + "@" + url_split[1]
 		text = ""
 		if 'article_text' in _article_map[file_name]['metadata'] and _article_map[file_name]['metadata']['article_text'] != "":
 			text = re.sub('[^A-Za-z0-9-_\., ]+', '', get_article_body(_article_map[file_name]['metadata']['article_text']))
@@ -285,7 +288,7 @@ def main(_param_dictionary):
 		publisher = _param_dictionary['parsed_feed'][first_key]['metadata']['publisher']
 		magazine = _param_dictionary['parsed_feed'][first_key]['metadata']['feed_name']
 	
-	all_docs, error_count = download_html(_param_dictionary['parsed_feed'],inputs["sentiment_url"],inputs["sentiment_apikey"],inputs["sentiment_model"],inputs["translate_url"],inputs["translate_apikey"])
+	all_docs, error_count = download_html(_param_dictionary['parsed_feed'],inputs["sentiment_url"],inputs["sentiment_apikey"],inputs["sentiment_model"],inputs["translate_url"],inputs["translate_apikey"], inputs)
 	result, leads = push_all_docs(all_docs,inputs['sql_db_url'],inputs['sql_db_apikey'],inputs['lead_by_article_url'])
 
 
