@@ -55,6 +55,8 @@ def get_article_body(text):
 			body = bp
 	if max_length < 1:
 		body = dom.xpath('//p//text()')
+	if len(body) < 1:
+		body = dom.xpath('//text()')
 		
 	body = re.sub(r'\xa0', '', " ".join(body))
 	body = re.sub(r'[\n\r]+',' ',body)
