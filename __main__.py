@@ -57,7 +57,7 @@ def get_article_body(text):
 		body = dom.xpath('//p//text()')
 		
 	body = re.sub(r'\xa0', '', " ".join(body))
-	body = re.sub(r'[\n\r]+','',body)
+	body = re.sub(r'[\n\r]+',' ',body)
 	body = re.sub(r'[ ]{2,}',' ', body)
 	
 	return body
