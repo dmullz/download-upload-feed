@@ -253,7 +253,7 @@ def push_all_docs(_article_map, _sql_db_url, _sql_db_apikey, lead_by_article_url
 					continue
 			break
 		
-		if (_article_map[file_name]['metadata']['lead_classifier'] > .45 and "Dow Jones" in _article_map[file_name]['metadata']['publisher']) or ("sentiment_score" in _article_map[file_name]['metadata'] and _article_map[file_name]['metadata']['sentiment_score'] > .33 and _article_map[file_name]['metadata']['lead_classifier'] > .5):
+		if (_article_map[file_name]['metadata']['lead_classifier'] > .45 and "Dow Jones" in _article_map[file_name]['metadata']['publisher']) or ("sentiment_score" in _article_map[file_name]['metadata'] and _article_map[file_name]['metadata']['sentiment_score'] > .33 and _article_map[file_name]['metadata']['lead_classifier'] > .5) or ("The New York Times" in _article_map[file_name]['metadata']['publisher'] and "sentiment_score" in _article_map[file_name]['metadata'] and _article_map[file_name]['metadata']['sentiment_score'] > .036 and _article_map[file_name]['metadata']['lead_classifier'] > .5):
 			leads.append(str(_article_map[file_name]['metadata']['sqldb_id_v2']))
 			#time_out = 5
 			#attempts = 1
