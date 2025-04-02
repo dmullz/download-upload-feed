@@ -139,8 +139,18 @@ def sentiment_text(sentiment_url, sentiment_apikey, sentiment_model, text):
 				return class_found['confidence']
 		raise
 	except Exception as ex:
-		print("*** " + env + " ERROR GETTING SENTIMENT:", str(ex))
-		return -2
+		time.sleep(3)
+		try:
+			r = requests.post(URL, auth=("apikey",sentiment_apikey), headers=headers, json=data)
+			r.raise_for_status()
+			for class_found in r.json()["classifications"]:
+				if class_found['class_name'] == "positive":
+					return class_found['confidence']
+			raise
+		except Exception as ex2:
+			print("*** " + env + " ERROR GETTING SENTIMENT:", str(ex2))
+			return -2
+		
 
 
 # @DEV: Uses an API to insert a row in the WM SQL DB
@@ -206,6 +216,8 @@ def download_html(_article_map, _sentiment_url, _sentiment_apikey, _sentiment_mo
 					_article_map[file_name]["metadata"]["sentiment_score"] = -6
 				else:
 					_article_map[file_name]["metadata"]["sentiment_score"] = sentiment_text(_sentiment_url, _sentiment_apikey, _sentiment_model, text)
+					if _article_map[file_name]["metadata"]["sentiment_score"] == -2:
+						print("*** " + env + " ERROR GETTING SENTIMENT FOR MAGAZINE AND ARTICLE", _article_map[file_name]['metadata']['feed_name'], _article_map[file_name]['metadata']['title'])
 			else:
 				_article_map[file_name]["metadata"]["sentiment_score"] = -5
 		
@@ -255,22 +267,6 @@ def push_all_docs(_article_map, _sql_db_url, _sql_db_apikey, lead_by_article_url
 		
 		if (_article_map[file_name]['metadata']['lead_classifier'] > .45 and "Dow Jones" in _article_map[file_name]['metadata']['publisher']) or ("sentiment_score" in _article_map[file_name]['metadata'] and _article_map[file_name]['metadata']['sentiment_score'] > .33 and _article_map[file_name]['metadata']['lead_classifier'] > .5) or ("The New York Times" in _article_map[file_name]['metadata']['publisher'] and "sentiment_score" in _article_map[file_name]['metadata'] and _article_map[file_name]['metadata']['sentiment_score'] > .11 and _article_map[file_name]['metadata']['lead_classifier'] > .5):
 			leads.append(str(_article_map[file_name]['metadata']['sqldb_id_v2']))
-			#time_out = 5
-			#attempts = 1
-			#while True:
-			#	try:
-			#		r = requests.get(url=lead_by_article_url+'?article_id=' + str(_article_map[file_name]['metadata']['sqldb_id_v2']))
-			#		r.raise_for_status()
-			#	except Exception as ex:
-			#		if attempts > 2:
-			#			print("*** " + env + " ERROR CALLING LEAD-BY-ARTICLE", str(ex))
-			#			break
-			#		else:
-			#			time.sleep(time_out)
-			#			time_out = time_out ** 2
-			#			attempts += 1
-			#			continue
-			#	break
 				
 	return uploaded_counter, leads
 
