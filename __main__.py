@@ -287,7 +287,7 @@ def main(_param_dictionary):
 	result, leads = push_all_docs(all_docs,inputs['sql_db_url'],inputs['sql_db_apikey'],inputs['lead_by_article_url'])
 
 
-	print("*** " + env + " " + str(result) + " ARTICLES ADDED TO SQL DB; " + str(len(leads)) + " LEADS TO BE CREATED")
+	print("*** " + env + " " + str(result) + " ARTICLES DOWNLOADED FOR PUB: " + publisher + " AND MAG: " + magazine + " TOTAL:" + str(len(leads)) + " LEADS TO BE CREATED")
 	
 	return {
 		"headers": {
