@@ -168,7 +168,7 @@ def insert_sql_db(sql_db_url,version,sql_db_apikey,payload):
 		return j['article_id']
 	except Exception as e:
 		print("*** " + env + " ERROR ADDING ARTICLE TO SQL DB:",str(e))
-		#print("PAYLOAD:",payload)
+		print("PAYLOAD: ",payload)
 		raise
 	
 
