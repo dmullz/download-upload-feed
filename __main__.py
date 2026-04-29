@@ -27,6 +27,7 @@ def get_article_body(text):
 	body_parses.append(dom.xpath('//div[(contains(@id,"Body") or contains(@id,"content") or contains(@class,"rich-text"))]/p//text()'))
 	body_parses.append(dom.xpath('//article[(contains(@class,"content") or contains(@class,"article"))]//*[self::p or self::h2]//text()'))
 	body_parses.append(dom.xpath('//article[not(contains(@class,"content") or contains(@class,"article"))]//*[self::p or self::h2]//text()'))
+	body_parses.append(dom.xpath('//title//text()'))
 	#body_parses.append(dom.xpath('//text()'))
 	
 	js_json = dom.xpath('//script[contains(@type,"application/json")]//text()')
