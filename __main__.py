@@ -68,6 +68,9 @@ def get_article_body(text):
 	
 def translate_text(url, translate_apikey, language, text):
 
+	#Short circuit translation for now as it is turned off
+	return text
+
 	if "en" in language or "unk" in language:
 		return text
 		
@@ -171,7 +174,7 @@ def insert_sql_db(sql_db_url,version,sql_db_apikey,payload):
 		print("*** " + env + " ERROR ADDING ARTICLE TO SQL DB:",str(e))
 		print("PAYLOAD: ",payload)
 		raise
-	
+
 
 
 # @DEV: Uses the requests library to download the html of each url given and saves to a repository.
